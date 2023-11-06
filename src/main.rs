@@ -1,6 +1,7 @@
 use std::{
-    fs::{create_dir_all, OpenOptions},
+    fs::{create_dir_all, File, OpenOptions},
     io::{Read, Write},
+    path::Path,
     thread::sleep,
     time::Duration,
 };
@@ -12,6 +13,7 @@ use ureq::serde_json;
 #[derive(Deserialize, Serialize)]
 struct Config {
     access_token: String,
+    id_token: String,
 }
 
 #[derive(Deserialize)]
@@ -57,15 +59,17 @@ enum Commands {
 fn main() -> Result<(), ureq::Error> {
     create_dir_all(".runebook")?;
     let mut buf = String::new();
+    let config_file_name = Path::new(".runebook/wand_config.json");
     let mut config_file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(".runebook/wand_config.toml")
+        .open(config_file_name)
         .unwrap();
     config_file.read_to_string(&mut buf)?;
     if buf == "" {
-        buf = String::from("{\"access_token\": \"\"}");
+        buf = String::from("{\"access_token\": \"\", \"id_token\": \"\"}");
+        println!("your config is empty just fyi");
     }
     let mut config: Config = serde_json::from_str(&buf).unwrap();
 
@@ -77,7 +81,8 @@ fn main() -> Result<(), ureq::Error> {
                     .set("content-type", "application/x-www-form-urlencoded")
                     .send_form(&[
                         ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
-                        ("scope", "openid profile"),
+                        ("scope", "openid profile email"),
+                        ("audience", "https://runebook.co/api"),
                     ])?
                     .into_json()?;
             println!(
@@ -98,8 +103,10 @@ fn main() -> Result<(), ureq::Error> {
                         let parsed_resp = Auth0AccessTokenResponse::from(response.into_json()?);
                         println!("{}", parsed_resp.access_token);
                         config.access_token = parsed_resp.access_token;
+                        config.id_token = parsed_resp.id_token;
                         let config_string = serde_json::to_string(&config).unwrap();
-                        config_file.write_all(&config_string.as_bytes())?;
+                        let mut config_writer = File::create(config_file_name).unwrap();
+                        config_writer.write_all(&config_string.as_bytes())?;
                         break;
                     }
                     Err(ureq::Error::Status(403, _response)) => {
@@ -115,12 +122,22 @@ fn main() -> Result<(), ureq::Error> {
         }
         Some(Commands::Wave { spell }) => {
             println!("Casting {}...", spell);
-            let uri: String = format!("http://runebook.local/api/proxy/spells/{spell}/executions");
+            let auth_uri: String = format!("http://api.runebook.local/auth/callback");
+            let auth_resp: String = ureq::post(&auth_uri)
+                .set("content-type", "application/json")
+                .send_json(ureq::json!({
+                    "id_token": config.id_token,
+                    "access_token": config.access_token,
+                }))?
+                .into_string()?;
+            println!("{}", auth_resp);
+            let uri: String = format!("http://api.runebook.local/spells/{spell}/executions");
             let resp: String = ureq::post(&uri)
                 .set(
                     "authorization",
                     format!("Bearer {}", config.access_token).as_str(),
                 )
+                .set("auth0-id-token", &config.id_token)
                 .set("content-type", "application/json")
                 .call()?
                 .into_string()?;
