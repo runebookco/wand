@@ -59,13 +59,13 @@ impl Cli {
     pub fn exec(self) -> Result<i32> {
         match self.command {
             Command::Login => {
-                let app = WandApp::new();
-                app?.exec_login()?;
+                let mut app = WandApp::new()?;
+                app.exec_login()?;
                 Ok(0)
             }
             Command::Cast { spell } => {
-                let app = WandApp::new();
-                app?.exec_cast(spell)?;
+                let mut app = WandApp::new()?;
+                app.exec_cast(spell)?;
                 Ok(0)
             }
         }
