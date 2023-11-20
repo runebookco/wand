@@ -1,39 +1,19 @@
-use std::{
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
-    thread::sleep,
-    time::Duration,
-};
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
-use serde::Deserialize;
-use ureq::serde_json;
 
-use crate::config::{initialize_config, Config};
-
-// HTTP stuff
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct Auth0DeviceCodeResponse {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    expires_in: u32,
-    interval: u32,
-    verification_uri_complete: String,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct Auth0AccessTokenResponse {
-    access_token: String,
-    id_token: String,
-    scope: String,
-    expires_in: u32,
-    token_type: String,
-}
+use crate::{
+    commands::{
+        cast::http::cast_spell,
+        login::http::{
+            get_auth0_access_token, get_auth0_device_code, Auth0AccessTokenResponse,
+            Auth0DeviceCodeResponse,
+        },
+    },
+    config::{initialize_config, store_access_token_in_config, Config},
+    http::authenticate_with_runebook,
+};
 
 /// Wand~
 #[derive(Debug, Parser)]
@@ -90,73 +70,17 @@ impl WandApp {
     }
 
     fn exec_login(&mut self) -> Result<()> {
-        let device_code_resp: Auth0DeviceCodeResponse =
-            ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/device/code")
-                .set("content-type", "application/x-www-form-urlencoded")
-                .send_form(&[
-                    ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
-                    ("scope", "openid profile email"),
-                    ("audience", "https://runebook.co/api"),
-                ])?
-                .into_json()?;
-        println!(
-            "Please visit the following link to log in: {:?}",
-            device_code_resp.verification_uri_complete
-        );
-
-        println!("Waiting...");
-        for _ in 1..10 {
-            match ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/token")
-                .set("content-type", "application/x-www-form-urlencoded")
-                .send_form(&[
-                    ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-                    ("device_code", &device_code_resp.device_code),
-                    ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
-                ]) {
-                Ok(response) => {
-                    let parsed_resp = Auth0AccessTokenResponse::from(response.into_json()?);
-                    println!("{}", parsed_resp.access_token);
-                    self.config.access_token = parsed_resp.access_token;
-                    self.config.id_token = parsed_resp.id_token;
-                    let config_string = serde_json::to_string(&self.config).unwrap();
-                    let mut config_writer = File::create(&self.config_file_name).unwrap();
-                    config_writer.write_all(&config_string.as_bytes())?;
-                    break;
-                }
-                Err(ureq::Error::Status(403, _response)) => {
-                    sleep(Duration::from_secs(device_code_resp.interval.into()));
-                }
-                Err(_) => {
-                    println!("Transport error :(")
-                }
-            }
-        }
+        let device_code_resp: Auth0DeviceCodeResponse = get_auth0_device_code()?;
+        let access_token_resp: Auth0AccessTokenResponse = get_auth0_access_token(device_code_resp)?;
+        // TODO: Make updating config less bespoke, should just be one function to key replace basically
+        store_access_token_in_config(&mut self.config, &self.config_file_name, access_token_resp)?;
 
         Ok(())
     }
 
     fn exec_cast(&mut self, spell: String) -> Result<()> {
-        println!("Casting {}...", spell);
-        let auth_uri: String = format!("http://api.runebook.local/auth/callback");
-        let auth_resp: String = ureq::post(&auth_uri)
-            .set("content-type", "application/json")
-            .send_json(ureq::json!({
-                "id_token": &self.config.id_token,
-                "access_token": &self.config.access_token,
-            }))?
-            .into_string()?;
-        println!("{}", auth_resp);
-        let uri: String = format!("http://api.runebook.local/spells/{spell}/executions");
-        let resp: String = ureq::post(&uri)
-            .set(
-                "authorization",
-                format!("Bearer {}", &self.config.access_token).as_str(),
-            )
-            .set("auth0-id-token", &self.config.id_token)
-            .set("content-type", "application/json")
-            .call()?
-            .into_string()?;
-        println!("{}", resp);
+        authenticate_with_runebook(&self.config)?;
+        cast_spell(&self.config, spell)?;
 
         Ok(())
     }

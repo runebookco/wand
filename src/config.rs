@@ -1,12 +1,20 @@
+/* TODO: This whole thing sucks.
+
+1. We should be using TOML
+2. We need hierarchical config (user-supplied arg override > local config ?>? envar > default or whatever)
+3. There are probably crates that handle some or most of this for us.
+*/
 use std::{
-    fs::{create_dir_all, OpenOptions},
-    io::Read,
+    fs::{create_dir_all, File, OpenOptions},
+    io::{Read, Write},
     path::PathBuf,
 };
 
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use ureq::serde_json;
+
+use crate::commands::login::http::Auth0AccessTokenResponse;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
@@ -30,4 +38,18 @@ pub fn initialize_config(config_file_name: PathBuf) -> Result<Config> {
     }
 
     Ok(serde_json::from_str(&buf).unwrap())
+}
+
+pub fn store_access_token_in_config(
+    config: &mut Config,
+    config_file_name: &PathBuf,
+    access_token_resp: Auth0AccessTokenResponse,
+) -> Result<()> {
+    config.access_token = access_token_resp.access_token;
+    config.id_token = access_token_resp.id_token;
+    let config_string = serde_json::to_string(&config).unwrap();
+    let mut config_writer = File::create(&config_file_name).unwrap();
+    config_writer.write_all(&config_string.as_bytes())?;
+
+    Ok(())
 }
