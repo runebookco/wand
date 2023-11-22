@@ -18,6 +18,7 @@ pub fn read_from_channel(channel: String) -> Result<()> {
             4. Teach the reader how to respond to our protocol (after implementing our protocol)
                 4a. Particularly important is knowing when to make tasks as done, and understanding if it needs to load up
                     new tasks down the chain.
+            5. Format the output in a way that is nice.
     */
     let url =
         "ws://ws-us3.pusher.com:80/app/e6cb5e89997457f402f2?client=Wand&version=0.1.0&protocol=7";
