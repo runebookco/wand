@@ -10,3 +10,5 @@ clap = { version = "4.4.7", features = ["derive"] }
 ureq = { version = "2.8.0", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 color-eyre = "0.6.2"
+tungstenite = "0.20.1"
+url = "2.4.1"
