@@ -19,10 +19,10 @@ use crate::commands::login::http::Auth0AccessTokenResponse;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
     pub access_token: String,
-    pub id_token: String,
 }
 
 pub fn initialize_config(config_file_name: PathBuf) -> Result<Config> {
+    // TODO: Where is this actually being stored?
     create_dir_all(".runebook")?;
     let mut buf = String::new();
     let mut config_file = OpenOptions::new()
@@ -33,7 +33,7 @@ pub fn initialize_config(config_file_name: PathBuf) -> Result<Config> {
         .unwrap();
     config_file.read_to_string(&mut buf)?;
     if buf == "" {
-        buf = String::from("{\"access_token\": \"\", \"id_token\": \"\"}");
+        buf = String::from("{\"access_token\": \"\"}");
         println!("your config is empty just fyi");
     }
 
@@ -46,7 +46,6 @@ pub fn store_access_token_in_config(
     access_token_resp: Auth0AccessTokenResponse,
 ) -> Result<()> {
     config.access_token = access_token_resp.access_token;
-    config.id_token = access_token_resp.id_token;
     let config_string = serde_json::to_string(&config).unwrap();
     let mut config_writer = File::create(&config_file_name).unwrap();
     config_writer.write_all(&config_string.as_bytes())?;

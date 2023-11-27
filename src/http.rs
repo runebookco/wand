@@ -7,7 +7,6 @@ pub fn authenticate_with_runebook(config: &Config) -> Result<()> {
     ureq::post(&auth_uri)
         .set("content-type", "application/json")
         .send_json(ureq::json!({
-            "id_token": config.id_token,
             "access_token": config.access_token,
         }))?;
 

@@ -60,6 +60,7 @@ struct WandApp {
 
 impl WandApp {
     fn new() -> Result<Self> {
+        // TODO: Where is this actually being stored?
         let config_file_name = Path::new(".runebook/wand_config.json");
         let config = initialize_config(config_file_name.into())?;
 

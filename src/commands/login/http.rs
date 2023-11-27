@@ -16,7 +16,7 @@ pub struct Auth0DeviceCodeResponse {
 #[derive(Deserialize)]
 pub struct Auth0AccessTokenResponse {
     pub access_token: String,
-    pub id_token: String,
+    // pub id_token: String,
     // scope: String,
     // expires_in: u32,
     // token_type: String,
