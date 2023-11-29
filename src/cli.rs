@@ -6,6 +6,7 @@ use color_eyre::Result;
 use crate::{
     commands::{
         cast::http::cast_spell,
+        list::http::list_spells,
         login::http::{
             get_auth0_access_token, get_auth0_device_code, Auth0AccessTokenResponse,
             Auth0DeviceCodeResponse,
@@ -29,7 +30,11 @@ enum Command {
     /// Authenticate with Runebook
     Login,
     /// Cast a spell
-    Cast { spell: String },
+    Cast {
+        spell: String,
+    },
+    // List all available spells
+    List,
 }
 
 impl Cli {
@@ -46,6 +51,11 @@ impl Cli {
             Command::Cast { spell } => {
                 let mut app = WandApp::new()?;
                 app.exec_cast(spell)?;
+                Ok(0)
+            }
+            Command::List => {
+                let mut app = WandApp::new()?;
+                app.exec_list()?;
                 Ok(0)
             }
         }
@@ -82,6 +92,13 @@ impl WandApp {
     fn exec_cast(&mut self, spell: String) -> Result<()> {
         authenticate_with_runebook(&self.config)?;
         cast_spell(&self.config, spell)?;
+
+        Ok(())
+    }
+
+    fn exec_list(&mut self) -> Result<()> {
+        authenticate_with_runebook(&self.config)?;
+        list_spells(&self.config)?;
 
         Ok(())
     }
