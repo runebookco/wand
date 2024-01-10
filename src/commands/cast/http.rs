@@ -1,4 +1,7 @@
+use std::sync::{atomic::AtomicUsize, Arc};
+
 use color_eyre::Result;
+use colored::Colorize;
 use serde::Deserialize;
 
 use crate::{config::Config, pusher::read_from_channel};
@@ -8,8 +11,8 @@ struct SpellExecutionResponse {
     channel: String,
 }
 
-pub fn cast_spell(config: &Config, spell: String) -> Result<()> {
-    println!("Casting {}...", spell);
+pub fn cast_spell(config: &Config, spell: String, running: Arc<AtomicUsize>) -> Result<()> {
+    println!("{} {}...", "Casting: ".blue(), spell);
 
     let uri: String = format!("http://api.runebook.local/spells/{spell}/executions");
     let resp: SpellExecutionResponse = ureq::post(&uri)
@@ -21,7 +24,7 @@ pub fn cast_spell(config: &Config, spell: String) -> Result<()> {
         .call()?
         .into_json()?;
 
-    read_from_channel(resp.channel)?;
+    read_from_channel(resp.channel, running)?;
 
     Ok(())
 }

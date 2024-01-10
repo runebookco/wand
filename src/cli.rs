@@ -1,4 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::AtomicUsize,
+    sync::Arc,
+};
 
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
@@ -41,7 +45,7 @@ impl Cli {
     // Executes commands
     //
     // Returns exit code
-    pub fn exec(self) -> Result<i32> {
+    pub fn exec(self, running: Arc<AtomicUsize>) -> Result<i32> {
         match self.command {
             Command::Login => {
                 let mut app = WandApp::new()?;
@@ -50,7 +54,7 @@ impl Cli {
             }
             Command::Cast { spell } => {
                 let mut app = WandApp::new()?;
-                app.exec_cast(spell)?;
+                app.exec_cast(spell, running)?;
                 Ok(0)
             }
             Command::List => {
@@ -89,9 +93,9 @@ impl WandApp {
         Ok(())
     }
 
-    fn exec_cast(&mut self, spell: String) -> Result<()> {
+    fn exec_cast(&mut self, spell: String, running: Arc<AtomicUsize>) -> Result<()> {
         authenticate_with_runebook(&self.config)?;
-        cast_spell(&self.config, spell)?;
+        cast_spell(&self.config, spell, running)?;
 
         Ok(())
     }

@@ -29,7 +29,9 @@ pub fn get_auth0_device_code() -> Result<Auth0DeviceCodeResponse> {
             .send_form(&[
                 ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
                 ("scope", "openid profile email"),
-                ("audience", "https://runebook.co/api"),
+                // TODO: This needs to change based on how it is being used
+                // When built for prod it should have the prod url as the aud
+                ("audience", "https://api.runebook.local"),
             ])?
             .into_json()?;
 
