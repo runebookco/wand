@@ -1,3 +1,2 @@
-pub mod cast;
-pub mod list;
+pub mod install;
 pub mod login;

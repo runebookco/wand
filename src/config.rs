@@ -4,51 +4,53 @@
 2. We need hierarchical config (user-supplied arg override > local config ?>? envar > default or whatever)
 3. There are probably crates that handle some or most of this for us.
 */
-use std::{
-    fs::{create_dir_all, File, OpenOptions},
-    io::{Read, Write},
-    path::PathBuf,
-};
+use std::error::Error;
+use std::fs::{create_dir_all, File};
+use std::io::{BufReader, Write};
+use std::path::PathBuf;
 
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
+use dirs::home_dir;
 use serde::{Deserialize, Serialize};
 use ureq::serde_json;
 
-use crate::commands::login::http::Auth0AccessTokenResponse;
+lazy_static! {
+    static ref CONFIG_DIR: PathBuf = home_dir().unwrap().join(".wand");
+    static ref CONFIG_FILE: PathBuf = CONFIG_DIR.join("config.json");
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
     pub access_token: String,
 }
 
-pub fn initialize_config(config_file_name: PathBuf) -> Result<Config> {
-    // TODO: Where is this actually being stored?
-    create_dir_all(".runebook")?;
-    let mut buf = String::new();
-    let mut config_file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(config_file_name)
-        .unwrap();
-    config_file.read_to_string(&mut buf)?;
-    if buf == "" {
-        buf = String::from("{\"access_token\": \"\"}");
-        println!("your config is empty just fyi");
+pub fn save(access_token: &String) -> Result<Config> {
+    match create_dir_all(CONFIG_DIR.to_owned()) {
+        Ok(_) => {}
+        Err(_) => return Err(eyre!("Runebook config file error")),
     }
 
-    Ok(serde_json::from_str(&buf).unwrap())
+    let mut file = match File::create(CONFIG_FILE.to_owned()) {
+        Ok(f) => f,
+        Err(_) => return Err(eyre!("Runebook config file error")),
+    };
+
+    let config = Config { access_token: access_token.clone() };
+
+    let json = match serde_json::to_string(&config) {
+        Ok(c) => c,
+        Err(_) => return Err(eyre!("Runebook config file error")),
+    };
+
+    match file.write_all(&json.as_bytes()) {
+        Ok(_) => Ok(config),
+        Err(_) => Err(eyre!("Runebook config file error")),
+    }
 }
 
-pub fn store_access_token_in_config(
-    config: &mut Config,
-    config_file_name: &PathBuf,
-    access_token_resp: Auth0AccessTokenResponse,
-) -> Result<()> {
-    config.access_token = access_token_resp.access_token;
-    let config_string = serde_json::to_string(&config).unwrap();
-    let mut config_writer = File::create(&config_file_name).unwrap();
-    config_writer.write_all(&config_string.as_bytes())?;
-
-    Ok(())
+pub fn load() -> Result<Config, Box<dyn Error>> {
+    let file = File::open(CONFIG_FILE.to_owned())?;
+    let reader = BufReader::new(file);
+    let config: Config = serde_json::from_reader(reader)?;
+    Ok(config)
 }

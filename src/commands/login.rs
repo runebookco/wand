@@ -1,9 +1,36 @@
 use std::{thread::sleep, time::Duration};
 
-use color_eyre::Result;
-use serde::Deserialize;
+use crate::config;
 
-#[derive(Deserialize)]
+use color_eyre::eyre::Result;
+use serde::Deserialize;
+use seahorse::{Command, Context};
+
+pub fn command() -> Command {
+    Command::new("login")
+        .description("Login to Runebook")
+        .usage("wand login")
+        .action(action)
+}
+
+fn action(_: &Context) {
+    let resp = match get_auth0_device_code() {
+        Ok(r) => r,
+        Err(_) => { println!("Welp. Something went wrong. Sorry 😢"); return }
+    };
+
+    let resp = match get_auth0_access_token(resp) {
+        Ok(r) => r,
+        Err(_) => { println!("Welp. Something went wrong. Sorry 😢"); return }
+    };
+
+    match config::save(&resp.access_token) {
+        Ok(_) => return,
+        Err(e) => println!("{:?}", e),
+    }
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Auth0DeviceCodeResponse {
     pub interval: u32,
     pub device_code: String,
@@ -13,7 +40,7 @@ pub struct Auth0DeviceCodeResponse {
     // expires_in: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Auth0AccessTokenResponse {
     pub access_token: String,
     // pub id_token: String,
@@ -22,48 +49,49 @@ pub struct Auth0AccessTokenResponse {
     // token_type: String,
 }
 
-pub fn get_auth0_device_code() -> Result<Auth0DeviceCodeResponse> {
+fn get_auth0_device_code() -> Result<Auth0DeviceCodeResponse> {
     let device_code_resp: Auth0DeviceCodeResponse =
         ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/device/code")
             .set("content-type", "application/x-www-form-urlencoded")
             .send_form(&[
-                ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
+                ("client_id", "pqqnn9OzqT7MRE3T6jhQpMoo5BdFsOt9"),
                 ("scope", "openid profile email"),
-                // TODO: This needs to change based on how it is being used
-                // When built for prod it should have the prod url as the aud
-                ("audience", "https://api.runebook.local"),
+                ("audience", "https://api.runebook.co"),
             ])?
             .into_json()?;
 
     Ok(device_code_resp)
 }
 
-pub fn get_auth0_access_token(
+fn get_auth0_access_token(
     device_code_resp: Auth0DeviceCodeResponse,
 ) -> Result<Auth0AccessTokenResponse> {
-    println!(
-        "Please visit the following link to log in: {:?}",
-        device_code_resp.verification_uri_complete
-    );
+    let url = device_code_resp.verification_uri_complete;
 
-    // TODO: Handle errors
-    // TODO: Should this have a limit to num retries?
+    println!("Visit the following link to log in: {url}");
+
     loop {
-        match ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/token")
+        let resp = ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/token")
             .set("content-type", "application/x-www-form-urlencoded")
             .send_form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
                 ("device_code", &device_code_resp.device_code),
-                ("client_id", "1glLlU0sdhKP5F4pxGEfvMBaRxbPadgt"),
-            ]) {
+                ("client_id", "pqqnn9OzqT7MRE3T6jhQpMoo5BdFsOt9"),
+            ]);
+
+        match resp {
             Ok(response) => {
                 return Ok(Auth0AccessTokenResponse::from(response.into_json()?));
             }
+
             Err(ureq::Error::Status(403, _response)) => {
                 sleep(Duration::from_secs(device_code_resp.interval.into()));
+                continue;
             }
+
             Err(_) => {
-                println!("Transport error :(")
+                println!("Transport error");
+                continue;
             }
         }
     }
