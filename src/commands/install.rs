@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
-use std::process::{Command as ShellCommand, Stdio};
+use std::process::{exit, Command as ShellCommand, Stdio};
 
 use crate::config::{self, Config};
 use crate::util::{color, fmt};
@@ -36,7 +36,13 @@ fn action(_: &Context) {
 
     let manifest = handlebars.render("manifest", &data).unwrap();
 
-    let echo = ShellCommand::new("sh")
+    diff(&manifest);
+    confirm();
+    //install(&manifest);
+}
+
+fn diff(manifest: &String) {
+   let echo = ShellCommand::new("sh")
         .arg("-c")
         .arg(format!("echo {manifest}"))
         .stdout(Stdio::piped())
@@ -53,18 +59,39 @@ fn action(_: &Context) {
     let diff = String::from_utf8(kubectl.stdout).unwrap();
     let diff = fmt::indent(color::diff(diff), 4);
 
-    println!("\nContinuing will create/update the following Kubernetes resources:\n");
+    println!("\n  Continuing will create/update the following Kubernetes resources:");
+    println!("  -----------------------------------------------------------------\n");
     println!("{diff}");
-    print!("Do you wish to continue? [Y/n] ");
+}
 
+fn confirm() {
     let mut cont = String::new();
+
+    print!("  Do you wish to continue? [Y/n] ");
+
     stdout().flush().unwrap();
     stdin().read_line(&mut cont).unwrap();
 
     match cont.as_str() {
-        "y" | "Y" | "\n" | "\r" => println!("CONTINUE!"),
-        _ => println!("ABORT"),
-    };
+        "y" | "Y" | "\n" | "\r" => (), 
+        _ => exit(0),
+    }
+}
+
+fn install(manifest: &String) {
+   let echo = ShellCommand::new("sh")
+        .arg("-c")
+        .arg(format!("echo {manifest}"))
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    ShellCommand::new("kubectl")
+        .args(["apply", "-f", "-"])
+        .stdin(Stdio::from(echo.stdout.unwrap()))
+        .stdout(Stdio::inherit())
+        .spawn()
+        .unwrap();
 }
 
 fn check_prerequisites() {
