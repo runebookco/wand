@@ -5,8 +5,8 @@
 3. There are probably crates that handle some or most of this for us.
 */
 use std::error::Error;
-use std::fs::{create_dir_all, File};
-use std::io::{BufReader, Write};
+use std::fs::{self, create_dir_all, File};
+use std::io::Write;
 use std::path::PathBuf;
 
 use color_eyre::{eyre::eyre, Result};
@@ -49,8 +49,15 @@ pub fn save(access_token: &String) -> Result<Config> {
 }
 
 pub fn load() -> Result<Config, Box<dyn Error>> {
-    let file = File::open(CONFIG_FILE.to_owned())?;
-    let reader = BufReader::new(file);
-    let config: Config = serde_json::from_reader(reader)?;
+    let config = match fs::read_to_string(CONFIG_FILE.to_owned()) {
+        Ok(f) => f,
+        Err(_) => panic!("File open error"),
+    };
+
+    let config: Config = match serde_json::from_str(&config) {
+        Ok(c) => c,
+        Err(_) => panic!("Serde error"),
+    };
+
     Ok(config)
 }

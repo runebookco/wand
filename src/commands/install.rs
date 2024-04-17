@@ -5,6 +5,7 @@ use std::process::{exit, Command as ShellCommand, Stdio};
 use crate::config::{self, Config};
 use crate::util::{color, fmt};
 
+use dirs::home_dir;
 use handlebars::Handlebars;
 use seahorse::{Command, Context};
 use ureq::serde_json::Value;
@@ -38,7 +39,7 @@ fn action(_: &Context) {
 
     diff(&manifest);
     confirm();
-    //install(&manifest);
+    install(&manifest);
 }
 
 fn diff(manifest: &String) {
@@ -58,6 +59,11 @@ fn diff(manifest: &String) {
 
     let diff = String::from_utf8(kubectl.stdout).unwrap();
     let diff = fmt::indent(color::diff(diff), 4);
+
+    if diff.is_empty() {
+        println!("  ✔︎ Runebook Agent already installed.");
+        exit(0);
+    }
 
     println!("\n  Continuing will create/update the following Kubernetes resources:");
     println!("  -----------------------------------------------------------------\n");
@@ -91,6 +97,8 @@ fn install(manifest: &String) {
         .stdin(Stdio::from(echo.stdout.unwrap()))
         .stdout(Stdio::inherit())
         .spawn()
+        .unwrap()
+        .wait_with_output()
         .unwrap();
 }
 
@@ -118,7 +126,7 @@ fn get_organization(config: Config) -> Value {
     let access_token = config.access_token.as_str();
     let bearer = format!("Bearer {}", access_token);
     
-    let org = match ureq::get("http://api.runebook.local/organization")
+    let org = match ureq::get("https://api.runebook.co/organization")
         .set("Accept", "application/json")
         .set("Authorization", bearer.as_str())
         .call()
@@ -134,7 +142,7 @@ fn get_organization(config: Config) -> Value {
 }
 
 fn get_manifest() -> String {
-    let manifest = match ureq::get("http://api.runebook.local/install-manifest").call() {
+    let manifest = match ureq::get("https://api.runebook.co/install-manifest").call() {
         Ok(m) => m,
         Err(_) => panic!("Install manifest error. Please try again."),
     };
