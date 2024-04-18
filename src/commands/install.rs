@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use std::process::{exit, Command as ShellCommand, Stdio};
 
+use base64::prelude::*;
 use crate::config::{self, Config};
 use crate::util::{color, fmt};
 
-use dirs::home_dir;
 use handlebars::Handlebars;
 use seahorse::{Command, Context};
 use ureq::serde_json::Value;
@@ -29,10 +29,13 @@ fn action(_: &Context) {
     let mut handlebars = Handlebars::new();
     handlebars.register_template_string("manifest", manifest).unwrap();
 
+    let agent_id = String::from(org["uuid"].clone().as_str().unwrap());
+    let private_key = org["private_key"].clone();
+    let private_key = BASE64_STANDARD.encode(private_key.as_str().unwrap());
+
     let data = HashMap::from([
-        ("agent_id", org["uuid"].clone()),
-        ("public_key", org["public_key"].clone()),
-        ("private_key", org["private_key"].clone())
+        ("agent_id", agent_id),
+        ("private_key", private_key),
     ]);
 
     let manifest = handlebars.render("manifest", &data).unwrap();
