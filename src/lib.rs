@@ -1,7 +1,8 @@
-mod cli;
-mod commands;
-mod config;
-mod http;
-mod pusher;
+extern crate seahorse;
+extern crate dirs;
+#[macro_use]
+extern crate lazy_static;
 
-pub use cli::Cli;
+pub mod commands;
+pub mod config;
+mod util;
