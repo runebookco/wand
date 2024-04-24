@@ -1,4 +1,4 @@
-<h2 align="center">
+<h2>
   <a href="https://runebook.co" target="blank_">
     <img src="https://runebook.co/images/wand_horizontal.png" width="75%" align="center" />
     <br/>
