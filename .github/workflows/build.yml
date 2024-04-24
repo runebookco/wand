@@ -1,9 +1,17 @@
 name: Build & Release
 
 on:
-  push:
-    tags:
-      - v[0-9]+.*
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Major, Minor, or Patch
+        type: choice
+        options:
+          - Patch
+          - Minor
+          - Major
+      version:
+        description: Semver release
 
 permissions:
   contents: write
@@ -38,5 +46,5 @@ jobs:
           target: ${{ matrix.target }}
           tar: unix
           zip: windows
-          archive: $bin-$version-$target
+          archive: $bin-${{ github.event.inputs.version }}-$target
           token: ${{ secrets.GITHUB_TOKEN }}
