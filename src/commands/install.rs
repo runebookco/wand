@@ -128,7 +128,7 @@ fn get_organization(config: Config) -> Value {
 
     let access_token = config.access_token.as_str();
     let bearer = format!("Bearer {}", access_token);
-    
+
     let org = match ureq::get("https://api.runebook.co/organization")
         .set("Accept", "application/json")
         .set("Authorization", bearer.as_str())

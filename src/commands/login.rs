@@ -51,7 +51,7 @@ pub struct Auth0AccessTokenResponse {
 
 fn get_auth0_device_code() -> Result<Auth0DeviceCodeResponse> {
     let device_code_resp: Auth0DeviceCodeResponse =
-        ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/device/code")
+        ureq::post("https://auth.runebook.co/oauth/device/code")
             .set("content-type", "application/x-www-form-urlencoded")
             .send_form(&[
                 ("client_id", "pqqnn9OzqT7MRE3T6jhQpMoo5BdFsOt9"),
@@ -71,7 +71,7 @@ fn get_auth0_access_token(
     println!("Visit the following link to log in: {url}");
 
     loop {
-        let resp = ureq::post("https://dev-ffhgcf1rq083t20m.us.auth0.com/oauth/token")
+        let resp = ureq::post("https://auth.runebook.co/oauth/token")
             .set("content-type", "application/x-www-form-urlencoded")
             .send_form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
