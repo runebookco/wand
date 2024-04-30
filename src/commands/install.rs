@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use std::process::{exit, Command as ShellCommand, Stdio};
 
-use base64::prelude::*;
 use crate::config::{self, Config};
 use crate::util::{color, fmt};
+use base64::prelude::*;
 
 use handlebars::Handlebars;
 use seahorse::{Command, Context};
@@ -27,16 +27,15 @@ fn action(_: &Context) {
     let manifest = get_manifest();
 
     let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("manifest", manifest).unwrap();
+    handlebars
+        .register_template_string("manifest", manifest)
+        .unwrap();
 
     let agent_id = String::from(org["uuid"].clone().as_str().unwrap());
     let private_key = org["private_key"].clone();
     let private_key = BASE64_STANDARD.encode(private_key.as_str().unwrap());
 
-    let data = HashMap::from([
-        ("agent_id", agent_id),
-        ("private_key", private_key),
-    ]);
+    let data = HashMap::from([("agent_id", agent_id), ("private_key", private_key)]);
 
     let manifest = handlebars.render("manifest", &data).unwrap();
 
@@ -46,7 +45,7 @@ fn action(_: &Context) {
 }
 
 fn diff(manifest: &String) {
-   let echo = ShellCommand::new("sh")
+    let echo = ShellCommand::new("sh")
         .arg("-c")
         .arg(format!("echo {manifest}"))
         .stdout(Stdio::piped())
@@ -81,14 +80,14 @@ fn confirm() {
     stdout().flush().unwrap();
     stdin().read_line(&mut cont).unwrap();
 
-    match cont.as_str() {
-        "y" | "Y" | "\n" | "\r" => (), 
+    match cont.to_lowercase().trim() {
+        "y" | "yes" | "" => (),
         _ => exit(0),
     }
 }
 
 fn install(manifest: &String) {
-   let echo = ShellCommand::new("sh")
+    let echo = ShellCommand::new("sh")
         .arg("-c")
         .arg(format!("echo {manifest}"))
         .stdout(Stdio::piped())
@@ -133,10 +132,10 @@ fn get_organization(config: Config) -> Value {
         .set("Accept", "application/json")
         .set("Authorization", bearer.as_str())
         .call()
-        {
-            Ok(o) => o,
-            Err(_) => panic!("Invalid User error. Please try again.")
-        };
+    {
+        Ok(o) => o,
+        Err(_) => panic!("Invalid User error. Please try again."),
+    };
 
     match org.into_json() {
         Ok(o) => o,
