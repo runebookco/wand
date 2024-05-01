@@ -4,28 +4,40 @@ on:
   release:
     types:
       - created
+      - edited # NOTE: Temporary until this is definitely working
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-musl
             archive: tar.gz
+            platform: ubuntu-latest
           - target: x86_64-apple-darwin
             archive: tar.gz
+            platform: macos-latest
           - target: x86_64-pc-windows-gnu
             archive: tar.gz
+            platform: windows-latest
+
+    name: release ${{ matrix.target }}
+    runs-on: ${{ matrix.platform }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: rust-build/rust-build.action@v1.4.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wand-${{ matrix.target }}-${{ github.event.release.tag_name }}
+          path: wand-*
