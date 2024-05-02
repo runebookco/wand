@@ -1,10 +1,8 @@
 name: Build
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        type: string
+  release:
+    types: [created]
 
 permissions:
   contents: write
@@ -14,12 +12,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
-            platform: ubuntu-latest
           - target: x86_64-apple-darwin
             platform: macos-latest
-          - target: x86_64-pc-windows-gnu
-            platform: windows-latest
+          #- target: x86_64-unknown-linux-gnu
+          #  platform: ubuntu-latest
+          #- target: aarch64-unknown-linux-gnu
+          #  platform: ubuntu-latest
+          #- target: x86_64-pc-windows-gnu
+          #  platform: windows-latest
 
     name: release ${{ matrix.target }}
     runs-on: ${{ matrix.platform }}
@@ -40,12 +40,12 @@ jobs:
           args: --target=${{ matrix.target }} --release
 
       - run: |
-          tar caf ./wand-${{ matrix.target }}-${{ inputs.version }}.tar.gz target/${{ matrix.target }}/release/wand 
+          tar caf ./wand-${{ matrix.target }}-${{ github.event.release.tag_name }}.tar.gz target/${{ matrix.target }}/release/wand 
+          shasum -a256 ./wand-${{ matrix.target }}-${{ github.event.release.tag_name }}.tar.gz > ./wand-${{ matrix.target }}-${{ github.event.release.tag_name }}.tar.gz.sha256sum
 
       - run: |
-          ls
-
-      #- uses: actions/upload-artifact@v4
-      #  with:
-      #    name: wand-${{ matrix.target }}-${{ github.event.release.tag_name }}
-      #    path: wand-*
+          gh release upload ${{ github.event.release.tag_name }} \
+            ./wand-${{ matrix.target }}-${{ github.event.release.tag_name }}.tar.gz \
+            ./wand-${{ matrix.target }}-${{ github.event.release.tag_name }}.tar.gz.sha256sum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
